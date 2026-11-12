@@ -93,6 +93,46 @@ def 대장_읽기():
     ]
 
 
+접수_칸 = ["id", "접수일시", "발견일", "접수자", "부서", "위치", "내용", "처리상태", "접수번호"]
+
+
+def 접수_저장(발견일, 접수자, 부서, 위치, 내용):
+    """접수 1건을 저장하고 id를 돌려준다. 처리상태는 '미처리'로 시작한다."""
+    sql = text(
+        'INSERT INTO "접수" ("발견일", "접수자", "부서", "위치", "내용") '
+        "VALUES (:발견일, :접수자, :부서, :위치, :내용) RETURNING id"
+    )
+    with 엔진().begin() as conn:
+        return conn.execute(sql, {"발견일": 발견일, "접수자": 접수자, "부서": 부서, "위치": 위치, "내용": 내용}).scalar()
+
+
+def 접수_읽기(처리상태=None):
+    """접수를 id 순으로 읽는다. 처리상태를 주면 그 상태만. 날짜·시각은 글로 돌려준다."""
+    칸들 = ", ".join(f'"{c}"' for c in 접수_칸)
+    where, 값 = ("", {}) if 처리상태 is None else (' WHERE "처리상태" = :s', {"s": 처리상태})
+    with 엔진().connect() as conn:
+        rows = conn.execute(text(f'SELECT {칸들} FROM "접수"{where} ORDER BY id'), 값).mappings().all()
+    return [{c: ("" if r[c] is None else str(r[c]) if c in ("접수일시", "발견일") else r[c]) for c in 접수_칸} for r in rows]
+
+
+def 접수_처리완료(접수_id, 접수번호):
+    """접수를 처리완료로 바꾸고 하자대장 접수번호를 적어 둔다."""
+    with 엔진().begin() as conn:
+        conn.execute(
+            text('UPDATE "접수" SET "처리상태" = \'처리완료\', "접수번호" = :n WHERE id = :i'),
+            {"n": 접수번호, "i": 접수_id},
+        )
+
+
+def 다음순번(접수일):
+    """그 접수일로 하자대장에 이미 있는 접수번호 다음 순번 (없으면 1)."""
+    접수일 = 접수일 if isinstance(접수일, date) else date.fromisoformat(str(접수일))
+    앞 = f"HJ-{접수일:%Y%m%d}-"
+    with 엔진().connect() as conn:
+        번호들 = conn.execute(text('SELECT "접수번호" FROM "하자대장" WHERE "접수번호" LIKE :p'), {"p": 앞 + "%"}).scalars().all()
+    return max((int(n[len(앞):]) for n in 번호들), default=0) + 1
+
+
 def 건수():
     """테이블별 건수 {'접수': n, '하자대장': n}"""
     with 엔진().connect() as conn:
