@@ -3,19 +3,16 @@
 흐름: 원문 읽기 -> AI가 5칸 정리(ai.py) -> 코드가 번호·기한·보증 판정(rules.py) -> CSV 저장
 사용: python run.py [입력폴더] [저장파일]
 """
-import csv
 import sys
 from collections import defaultdict
 from pathlib import Path
 
 import ai
+import db
 import rules
 
 BASE = Path(__file__).parent
-대장_칸 = [
-    "접수번호", "접수일", "원문파일", "위치", "공종", "하자내용", "긴급도", "조치기한",
-    "공사번호", "시공업체", "준공일", "보증만료일", "보증판정", "책임구분", "상태", "비고",
-]
+대장_칸 = db.대장_칸
 
 
 def 행_만들기(파일명, 정리, 순번, 공사목록):
@@ -49,18 +46,13 @@ def 처리(입력폴더, 공사목록):
     return 행들
 
 
-def 저장(행들, 저장파일):
-    저장파일.parent.mkdir(parents=True, exist_ok=True)
-    # utf-8-sig: 엑셀에서 한글이 깨지지 않게 한다.
-    with open(저장파일, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=대장_칸)
-        w.writeheader()
-        w.writerows({k: 행.get(k, "") for k in 대장_칸} for 행 in 행들)
+def 저장(행들, 저장파일=None):
+    """하자대장은 DB에 저장한다(db.py). 저장파일은 예전 호출과 맞추려고 남긴 자리이며 쓰지 않는다."""
+    db.대장_저장(행들)
 
 
 if __name__ == "__main__":
     입력 = Path(sys.argv[1]) if len(sys.argv) > 1 else BASE / "data" / "접수함"
-    출력 = Path(sys.argv[2]) if len(sys.argv) > 2 else BASE / "data" / "하자대장.csv"
     행들 = 처리(입력, rules.공사정보_읽기())
-    저장(행들, 출력)
-    print(f"저장 완료: {출력} ({len(행들)}건)")
+    저장(행들)
+    print(f"DB 하자대장에 저장 완료 ({len(행들)}건)")

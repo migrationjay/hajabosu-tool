@@ -14,7 +14,6 @@ import run
 
 BASE = Path(__file__).parent
 접수함 = BASE / "data" / "접수함"
-대장파일 = BASE / "data" / "하자대장.csv"
 
 st.set_page_config(page_title="하자보수 접수 처리", layout="wide")
 st.title("하자보수 접수 처리")
@@ -138,8 +137,8 @@ else:
 st.header("4. 하자대장")
 if 행들:
     st.dataframe(pd.DataFrame(행들)[run.대장_칸], hide_index=True, use_container_width=True)
-    if st.button("data/하자대장.csv로 저장"):
-        run.저장(행들, 대장파일)
-        st.success(f"저장했습니다: {대장파일.name} ({len(행들)}건)")
+    if st.button("DB 하자대장에 저장"):
+        run.저장(행들)
+        st.success(f"DB 하자대장에 저장했습니다 ({len(행들)}건)")
 else:
     st.caption("처리한 접수가 아직 없습니다.")
